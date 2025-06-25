@@ -281,8 +281,9 @@ impl State {
         // Simulate building a block
         sleep(Duration::from_millis(100)).await;
 
-        // Create a simple value - in real implementation this would be a proper block
-        let value = Value::new(bytes::Bytes::from(vec![1, 2, 3, 4])); // Placeholder data
+        // Create an empty block for now - in real implementation this would use reth's block builder
+        let block = self.create_empty_block(height.as_u64());
+        let value = Value::new(block);
 
         info!("Proposed value for height {} round {}", height, round);
 
@@ -371,7 +372,8 @@ impl State {
                 value_id,
                 height
             );
-            Value::new(Bytes::new())
+            // Create an empty block as placeholder
+            Value::new(self.create_empty_block(height.as_u64()))
         });
 
         // Store the decided value
@@ -394,6 +396,50 @@ impl State {
     /// Gets the earliest available height
     pub async fn get_earliest_height(&self) -> Height {
         Height::INITIAL // Start from height 1
+    }
+
+    /// Creates an empty block for testing purposes
+    /// In production, this would use reth's block builder with the transaction pool
+    fn create_empty_block(&self, block_number: u64) -> reth_primitives::Block {
+        use alloy_consensus::Header;
+        use alloy_primitives::{keccak256, U256};
+
+        let header = Header {
+            number: block_number,
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            parent_hash: if block_number > 0 {
+                // In real implementation, get parent hash from storage
+                keccak256(block_number.to_be_bytes())
+            } else {
+                Default::default()
+            },
+            state_root: Default::default(),
+            transactions_root: Default::default(),
+            receipts_root: Default::default(),
+            logs_bloom: Default::default(),
+            ommers_hash: Default::default(),
+            difficulty: U256::ZERO,
+            gas_limit: 30_000_000,
+            gas_used: 0,
+            beneficiary: Default::default(),
+            mix_hash: Default::default(),
+            nonce: Default::default(),
+            extra_data: Default::default(),
+            base_fee_per_gas: Some(1_000_000_000), // 1 gwei
+            withdrawals_root: Some(Default::default()),
+            blob_gas_used: Some(0),
+            excess_blob_gas: Some(0),
+            parent_beacon_block_root: Some(Default::default()),
+            requests_hash: None,
+        };
+
+        reth_primitives::Block {
+            header,
+            body: Default::default(), // Empty body
+        }
     }
 
     /// Gets a previously built value for reuse
@@ -721,15 +767,27 @@ pub fn reload_log_level(_height: Height, _round: Round) {
 }
 
 /// Encode a value to its byte representation
-pub fn encode_value(_value: &Value) -> Bytes {
-    // For now, return empty bytes - this would serialize the value
-    Bytes::new()
+pub fn encode_value(value: &Value) -> Bytes {
+    // Serialize the block using bincode
+    match bincode::serialize(&value.block) {
+        Ok(bytes) => Bytes::from(bytes),
+        Err(e) => {
+            tracing::error!("Failed to encode value: {}", e);
+            Bytes::new()
+        }
+    }
 }
 
 /// Decode a value from its byte representation
-pub fn decode_value(_bytes: Bytes) -> Option<Value> {
-    // For now, return None - this would deserialize the value
-    None
+pub fn decode_value(bytes: Bytes) -> Option<Value> {
+    // Deserialize the block using bincode
+    match bincode::deserialize::<reth_primitives::Block>(&bytes) {
+        Ok(block) => Some(Value::new(block)),
+        Err(e) => {
+            tracing::error!("Failed to decode value: {}", e);
+            None
+        }
+    }
 }
 
 // Type alias for compatibility
