@@ -52,11 +52,28 @@ SPAWN_PID=$!
 # Cleanup function
 cleanup() {
     log "Cleaning up..."
+    
+    # First, preserve logs before cleanup
+    if [ -d "$TESTNET_DIR/logs" ]; then
+        log "Preserving logs..."
+        cp -r "$TESTNET_DIR/logs" "$TESTNET_DIR/logs.preserved" 2>/dev/null || true
+    fi
+    
     if [ -n "$SPAWN_PID" ] && ps -p $SPAWN_PID > /dev/null 2>&1; then
         kill $SPAWN_PID 2>/dev/null || true
         wait $SPAWN_PID 2>/dev/null || true
     fi
-    ./spawn.sh clean
+    
+    # Clean up but don't remove logs
+    if pgrep -f "reth-malachite" > /dev/null; then
+        pkill -f "reth-malachite" 2>/dev/null || true
+        sleep 2
+    fi
+    
+    # Restore logs if they were removed
+    if [ -d "$TESTNET_DIR/logs.preserved" ] && [ ! -d "$TESTNET_DIR/logs" ]; then
+        mv "$TESTNET_DIR/logs.preserved" "$TESTNET_DIR/logs"
+    fi
 }
 
 trap cleanup EXIT
@@ -161,6 +178,11 @@ while true; do
     # Check if all nodes reached target
     if [ "$all_reached" = true ] && [ $responsive_nodes -eq $NUM_NODES ]; then
         log "SUCCESS: All nodes reached block $TARGET_BLOCK"
+        # Ensure logs directory exists for artifact upload
+        if [ ! -d "$TESTNET_DIR/logs" ]; then
+            log "Creating empty logs directory for artifact upload"
+            mkdir -p "$TESTNET_DIR/logs"
+        fi
         exit 0
     fi
     
