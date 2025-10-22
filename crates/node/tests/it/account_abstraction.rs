@@ -8,7 +8,10 @@ use alloy::{
 use alloy_eips::{Decodable2718, Encodable2718};
 use p256::ecdsa::signature::hazmat::PrehashSigner;
 use tempo_chainspec::spec::TEMPO_BASE_FEE;
-use tempo_precompiles::{DEFAULT_FEE_TOKEN, contracts::ITIP20::transferCall};
+use tempo_precompiles::{
+    DEFAULT_FEE_TOKEN,
+    tip20::{ITIP20, ITIP20::transferCall},
+};
 use tempo_primitives::{
     TempoTxEnvelope,
     transaction::{
@@ -1041,7 +1044,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_aa_p256_call_batching() -> eyre::Result<()> {
     use sha2::{Digest, Sha256};
-    use tempo_precompiles::contracts::ITIP20;
+    use tempo_contracts::precompiles::ITIP20;
 
     reth_tracing::init_test_tracing();
 
@@ -1303,11 +1306,10 @@ async fn test_aa_fee_payer_tx() -> eyre::Result<()> {
     println!("User address: {user_addr} (unfunded)");
 
     // Verify user has ZERO balance in DEFAULT_FEE_TOKEN
-    let user_token_balance =
-        tempo_precompiles::contracts::ITIP20::new(DEFAULT_FEE_TOKEN, &provider)
-            .balanceOf(user_addr)
-            .call()
-            .await?;
+    let user_token_balance = ITIP20::new(DEFAULT_FEE_TOKEN, &provider)
+        .balanceOf(user_addr)
+        .call()
+        .await?;
     assert_eq!(
         user_token_balance,
         U256::ZERO,
@@ -1316,11 +1318,10 @@ async fn test_aa_fee_payer_tx() -> eyre::Result<()> {
     println!("User token balance: {user_token_balance} (expected: 0)");
 
     // Get fee payer's balance before transaction
-    let fee_payer_balance_before =
-        tempo_precompiles::contracts::ITIP20::new(DEFAULT_FEE_TOKEN, &provider)
-            .balanceOf(fee_payer_addr)
-            .call()
-            .await?;
+    let fee_payer_balance_before = ITIP20::new(DEFAULT_FEE_TOKEN, &provider)
+        .balanceOf(fee_payer_addr)
+        .call()
+        .await?;
     println!("Fee payer balance before: {fee_payer_balance_before} tokens");
 
     // Create AA transaction with fee payer signature placeholder
@@ -1411,11 +1412,10 @@ async fn test_aa_fee_payer_tx() -> eyre::Result<()> {
     );
 
     // Verify user still has ZERO balance (fee payer paid)
-    let user_token_balance_after =
-        tempo_precompiles::contracts::ITIP20::new(DEFAULT_FEE_TOKEN, &provider)
-            .balanceOf(user_addr)
-            .call()
-            .await?;
+    let user_token_balance_after = ITIP20::new(DEFAULT_FEE_TOKEN, &provider)
+        .balanceOf(user_addr)
+        .call()
+        .await?;
     assert_eq!(
         user_token_balance_after,
         U256::ZERO,
@@ -1423,11 +1423,10 @@ async fn test_aa_fee_payer_tx() -> eyre::Result<()> {
     );
 
     // Verify fee payer's balance decreased
-    let fee_payer_balance_after =
-        tempo_precompiles::contracts::ITIP20::new(DEFAULT_FEE_TOKEN, &provider)
-            .balanceOf(fee_payer_addr)
-            .call()
-            .await?;
+    let fee_payer_balance_after = ITIP20::new(DEFAULT_FEE_TOKEN, &provider)
+        .balanceOf(fee_payer_addr)
+        .call()
+        .await?;
 
     println!("Fee payer balance after: {fee_payer_balance_after} tokens");
 

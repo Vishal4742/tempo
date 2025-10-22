@@ -30,12 +30,9 @@ use reth_evm::{
 use tempo_contracts::DEFAULT_7702_DELEGATE_ADDRESS;
 use tempo_precompiles::{
     TIP_FEE_MANAGER_ADDRESS,
-    contracts::{
-        EvmStorageProvider,
-        storage::slots::mapping_slot,
-        tip_fee_manager::{self, TipFeeManager},
-        tip20,
-    },
+    storage::{evm::EvmPrecompileStorageProvider, slots::mapping_slot},
+    tip_fee_manager::{self, IFeeManager, TipFeeManager},
+    tip20,
 };
 use tempo_primitives::transaction::AASignature;
 
@@ -450,7 +447,7 @@ where
 
         // Create storage provider wrapper around journal
         let internals = EvmInternals::new(journal, &block);
-        let mut storage_provider = EvmStorageProvider::new(internals, cfg.chain_id());
+        let mut storage_provider = EvmPrecompileStorageProvider::new(internals, cfg.chain_id());
         let mut fee_manager = TipFeeManager::new(
             TIP_FEE_MANAGER_ADDRESS,
             block.beneficiary(),
@@ -477,7 +474,6 @@ where
                 // Map fee collection errors to transaction validation errors since they
                 // indicate the transaction cannot be included (e.g., insufficient liquidity
                 // in FeeAMM pool for fee swaps)
-                use tempo_precompiles::contracts::IFeeManager;
                 match e {
                     IFeeManager::IFeeManagerErrors::InsufficientLiquidity(_) => {
                         EVMError::Transaction(TempoInvalidTransaction::InsufficientAmmLiquidity {
@@ -521,7 +517,7 @@ where
         // Create storage provider and fee manager
         let (journal, block) = (&mut context.journaled_state, &context.block);
         let internals = EvmInternals::new(journal, block);
-        let mut storage_provider = EvmStorageProvider::new(internals, chain_id);
+        let mut storage_provider = EvmPrecompileStorageProvider::new(internals, chain_id);
         let mut fee_manager = TipFeeManager::new(
             TIP_FEE_MANAGER_ADDRESS,
             block.beneficiary,

@@ -1,14 +1,14 @@
 use alloy::{primitives::U256, providers::ProviderBuilder, signers::local::MnemonicBuilder};
 use rand::Rng;
 use std::env;
-use tempo_contracts::precompiles::ITIP20::ITIP20Instance;
+use tempo_contracts::precompiles::{
+    IStablecoinExchange,
+    ITIP20::{self, ITIP20Instance},
+};
 use tempo_precompiles::{
     STABLECOIN_EXCHANGE_ADDRESS,
-    contracts::{
-        stablecoin_exchange::{MAX_TICK, MIN_TICK},
-        token_id_to_address,
-        types::{IStablecoinExchange, ITIP20},
-    },
+    stablecoin_exchange::{MAX_TICK, MIN_TICK},
+    tip20::token_id_to_address,
 };
 
 use crate::utils::{await_receipts, setup_test_token};
