@@ -4,21 +4,22 @@ pub mod error;
 pub mod order;
 pub mod orderbook;
 
-pub use tempo_contracts::precompiles::{
-    IStablecoinExchange, StablecoinExchangeError, StablecoinExchangeEvents,
-};
-
 pub use order::Order;
 pub use orderbook::{
-    MAX_PRICE, MAX_TICK, MIN_PRICE, MIN_TICK, Orderbook, PRICE_SCALE, TickLevel, price_to_tick,
-    tick_to_price,
+    MAX_TICK, MIN_TICK, Orderbook, PRICE_SCALE, TickLevel, price_to_tick, tick_to_price,
+};
+pub use tempo_contracts::precompiles::{
+    IStablecoinExchange, StablecoinExchangeError, StablecoinExchangeEvents,
 };
 
 use crate::{
     LINKING_USD_ADDRESS, STABLECOIN_EXCHANGE_ADDRESS,
     error::{Result, TempoPrecompileError},
     linking_usd::LinkingUSD,
-    stablecoin_exchange::orderbook::compute_book_key,
+    stablecoin_exchange::orderbook::{
+        MAX_PRICE_POST_MODERATO, MAX_PRICE_PRE_MODERATO, MIN_PRICE_POST_MODERATO,
+        MIN_PRICE_PRE_MODERATO, compute_book_key,
+    },
     storage::{PrecompileStorageProvider, Slot, Storable, VecSlotExt},
     tip20::{ITIP20, TIP20Token, is_tip20, validate_usd_currency},
 };
@@ -101,6 +102,24 @@ impl<'a, S: PrecompileStorageProvider> StablecoinExchange<'a, S> {
     /// Get user's balance for a specific token
     pub fn balance_of(&mut self, user: Address, token: Address) -> Result<u128> {
         self.sload_balances(user, token)
+    }
+
+    /// Get MIN_PRICE value based on current hardfork
+    pub fn min_price(&self) -> u32 {
+        if self.storage.spec().is_moderato() {
+            MIN_PRICE_POST_MODERATO
+        } else {
+            MIN_PRICE_PRE_MODERATO
+        }
+    }
+
+    /// Get MAX_PRICE value based on current hardfork
+    pub fn max_price(&self) -> u32 {
+        if self.storage.spec().is_moderato() {
+            MAX_PRICE_POST_MODERATO
+        } else {
+            MAX_PRICE_PRE_MODERATO
+        }
     }
 
     /// Fetch order from storage. If the order is currently pending or filled, this function returns
